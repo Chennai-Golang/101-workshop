@@ -22,10 +22,18 @@ type Review struct {
 	Content string
 }
 
-func (review *Review) parseHtml(raw soup.Root) {
+func (review *Review) parseHtml(raw soup.Root) error {
+	contentHolder := raw.Find("div", "class", "a-expander-content")
+
+	if contentHolder.Error != nil {
+		return contentHolder.Error
+	}
+
 	review.Name = raw.Find("span", "class", "a-profile-name").Text()
 	review.Rating = raw.Find("span", "class", "a-icon-alt").Text()
-	review.Content = raw.Find("div", "class", "a-expander-content").Text()
+	review.Content = contentHolder.Text()
+
+	return nil
 }
 
 func (product *Product) getReviews() {
@@ -47,16 +55,12 @@ func (product *Product) getReviews() {
 	reviews := []Review{}
 
 	for _, rawReview := range rawReviews {
-		contentHolder := rawReview.Find("div", "class", "a-expander-content")
-
-		if contentHolder.Error != nil {
-			continue
-		}
-
 		review := Review{}
-		review.parseHtml(rawReview)
+		err := review.parseHtml(rawReview)
 
-		reviews = append(reviews, review)
+		if err == nil {
+			reviews = append(reviews, review)
+		}
 	}
 
 	product.Reviews = reviews
