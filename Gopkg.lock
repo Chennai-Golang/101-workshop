@@ -2,12 +2,12 @@
 
 
 [[projects]]
-  digest = "1:e85c733f47f7e633fce4eb46a3b2d3616dd95517dcf670ba36bb6da0394dbf16"
+  branch = "master"
+  digest = "1:2efa512e2ceeda7f785a45057955b06a7ebda893b759fe4ceedad52637aad6a7"
   name = "github.com/anaskhan96/soup"
   packages = ["."]
   pruneopts = "UT"
-  revision = "cd07662ec9300d16d2ece1c24b0b29ad89f65ff4"
-  version = "v1.1"
+  revision = "00be3d730c89ee1efa038324e9bc7355ad23f93b"
 
 [[projects]]
   branch = "master"
