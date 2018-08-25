@@ -3,11 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/anaskhan96/soup"
 	"os"
 	"time"
+
+	"github.com/anaskhan96/soup"
 )
 
+// A Product represents a product on amazon
 type Product struct {
 	Name    string
 	Link    string
@@ -16,13 +18,14 @@ type Product struct {
 	Reviews []Review
 }
 
+// A Review represents a review on amazon
 type Review struct {
 	Name    string
 	Rating  string
 	Content string
 }
 
-func (review *Review) parseHtml(raw soup.Root) error {
+func (review *Review) parseHTML(raw soup.Root) error {
 	contentHolder := raw.Find("div", "class", "a-expander-content")
 
 	if contentHolder.Error != nil {
@@ -56,7 +59,7 @@ func (product *Product) getReviews() {
 
 	for _, rawReview := range rawReviews {
 		review := Review{}
-		err := review.parseHtml(rawReview)
+		err := review.parseHTML(rawReview)
 
 		if err == nil {
 			reviews = append(reviews, review)
@@ -66,13 +69,17 @@ func (product *Product) getReviews() {
 	product.Reviews = reviews
 }
 
-func (product *Product) parseHtml(result soup.Root) {
+func parseHTML(result soup.Root, resultChan chan Product) {
+	product := Product{}
+
 	product.Link = result.Find("a", "class", "s-access-detail-page").Attrs()["href"]
 	product.Name = result.Find("h2", "class", "s-access-title").Text()
 	product.Image = result.Find("img", "class", "s-access-image").Attrs()["src"]
 	product.Price = result.Find("span", "class", "s-price").Text()
 
 	product.getReviews()
+
+	resultChan <- product
 }
 
 func main() {
@@ -86,12 +93,13 @@ func main() {
 	results := doc.Find("div", "id", "mainResults").FindAll("li", "class", "s-result-item")
 	now := time.Now().UTC()
 
+	resultsChan := make(chan Product)
 	for _, result := range results {
-		product := Product{}
+		go parseHTML(result, resultsChan)
+	}
 
-		product.parseHtml(result)
-
-		json.NewEncoder(os.Stdout).Encode(product)
+	for range results {
+		json.NewEncoder(os.Stdout).Encode(<-resultsChan)
 	}
 
 	fmt.Println("Elapsed time: ", time.Since(now))
