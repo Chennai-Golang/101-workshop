@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/anaskhan96/soup"
@@ -25,7 +26,7 @@ type Review struct {
 	Content string
 }
 
-func (review *Review) parseHTML(raw soup.Root) error {
+func (review *Review) parseReviews(raw soup.Root) error {
 	contentHolder := raw.Find("div", "class", "a-expander-content")
 
 	if contentHolder.Error != nil {
@@ -40,7 +41,11 @@ func (review *Review) parseHTML(raw soup.Root) error {
 }
 
 func (product *Product) getReviews() {
+	now := time.Now().UTC()
 	resp, err := soup.Get(product.Link)
+	fmt.Println("Fetching time: ", time.Since(now))
+
+	now = time.Now().UTC()
 
 	if err != nil {
 		os.Exit(1)
@@ -59,7 +64,7 @@ func (product *Product) getReviews() {
 
 	for _, rawReview := range rawReviews {
 		review := Review{}
-		err := review.parseHTML(rawReview)
+		err := review.parseReviews(rawReview)
 
 		if err == nil {
 			reviews = append(reviews, review)
@@ -67,9 +72,10 @@ func (product *Product) getReviews() {
 	}
 
 	product.Reviews = reviews
+	fmt.Println("Review parsing time: ", time.Since(now))
 }
 
-func parseHTML(result soup.Root, resultChan chan Product) {
+func parseProducts(result soup.Root, resultChan chan Product) {
 	product := Product{}
 
 	product.Link = result.Find("a", "class", "s-access-detail-page").Attrs()["href"]
@@ -83,7 +89,13 @@ func parseHTML(result soup.Root, resultChan chan Product) {
 }
 
 func main() {
+	runtime.GOMAXPROCS(16)
+	now := time.Now().UTC()
+
 	resp, err := soup.Get("https://www.amazon.in/TVs/b/ref=nav_shopall_sbc_tvelec_television?ie=UTF8&node=1389396031")
+
+	fmt.Println("Main fetch time: ", time.Since(now))
+	now = time.Now().UTC()
 
 	if err != nil {
 		os.Exit(1)
@@ -91,11 +103,10 @@ func main() {
 
 	doc := soup.HTMLParse(resp)
 	results := doc.Find("div", "id", "mainResults").FindAll("li", "class", "s-result-item")
-	now := time.Now().UTC()
 
 	resultsChan := make(chan Product)
 	for _, result := range results {
-		go parseHTML(result, resultsChan)
+		go parseProducts(result, resultsChan)
 	}
 
 	products := []Product{}
