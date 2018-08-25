@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/anaskhan96/soup"
@@ -25,6 +26,8 @@ type Review struct {
 	Rating  string
 	Content string
 }
+
+var products = []Product{}
 
 func (review *Review) parseReviews(raw soup.Root) error {
 	contentHolder := raw.Find("div", "class", "a-expander-content")
@@ -75,7 +78,9 @@ func (product *Product) getReviews() {
 	fmt.Println("Review parsing time: ", time.Since(now))
 }
 
-func parseProducts(result soup.Root, resultChan chan Product) {
+func parseProducts(result soup.Root, s *sync.WaitGroup, mutex *sync.Mutex) {
+	defer s.Done()
+
 	product := Product{}
 
 	product.Link = result.Find("a", "class", "s-access-detail-page").Attrs()["href"]
@@ -85,7 +90,9 @@ func parseProducts(result soup.Root, resultChan chan Product) {
 
 	product.getReviews()
 
-	resultChan <- product
+	mutex.Lock()
+	products = append(products, product)
+	mutex.Unlock()
 }
 
 func main() {
@@ -104,15 +111,14 @@ func main() {
 	doc := soup.HTMLParse(resp)
 	results := doc.Find("div", "id", "mainResults").FindAll("li", "class", "s-result-item")
 
-	resultsChan := make(chan Product)
+	var s sync.WaitGroup
+	var mutex = &sync.Mutex{}
 	for _, result := range results {
-		go parseProducts(result, resultsChan)
+		s.Add(1)
+		go parseProducts(result, &s, mutex)
 	}
 
-	products := []Product{}
-	for range results {
-		products = append(products, <-resultsChan)
-	}
+	s.Wait()
 
 	json.NewEncoder(os.Stdout).Encode(products)
 
