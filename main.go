@@ -98,9 +98,12 @@ func main() {
 		go parseHTML(result, resultsChan)
 	}
 
+	products := []Product{}
 	for range results {
-		json.NewEncoder(os.Stdout).Encode(<-resultsChan)
+		products = append(products, <-resultsChan)
 	}
+
+	json.NewEncoder(os.Stdout).Encode(products)
 
 	fmt.Println("Elapsed time: ", time.Since(now))
 }
