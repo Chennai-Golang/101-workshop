@@ -14,6 +14,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"time"
 
 	"github.com/streadway/amqp"
 	"golang.org/x/net/context"
@@ -218,7 +219,7 @@ func write(w io.Writer) chan<- message {
 func main() {
 	flag.Parse()
 
-	ctx, done := context.WithCancel(context.Background())
+	ctx, done := context.WithTimeout(context.Background(), 10*time.Second)
 
 	go func() {
 		publish(redial(ctx, *url), read(os.Stdin))
